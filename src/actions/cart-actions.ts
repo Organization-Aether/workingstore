@@ -88,15 +88,24 @@ export async function increaseQuantity(productId: string) {
 }
 
 export async function decreaseQuantity(productId: string) {
-	const cart = await getCartFromCookiesAction();
-	if (!cart) {
-		throw new Error("Cart not found");
-	}
-	await Commerce.cart.update({
-		productId,
-		cartId: cart.cart.id,
-		operation: "DECREASE",
-	});
+  const cartRes = await getCartFromCookiesAction();
+  if (!cartRes?.cart) throw new Error("Cart not found");
+
+  const cart = cartRes.cart;
+
+  type CartLine = { id: string; productId?: string };
+  const lines: CartLine[] =
+    (cart as any).lines ?? (cart as any).items ?? (cart as any).lineItems ?? [];
+
+  const line = lines.find((l: CartLine) => l.productId === productId);
+  if (!line) throw new Error("Item not found in cart");
+
+  await Commerce.cart.update({
+    cartId: cart.id,
+    cartLineId: line.id,      // 🔁 change to the exact key from your SDK: cartLineId | itemId | lineItemId
+    operation: "DECREASE",
+  } as any);                   // remove `as any` once the key name is correct
+
 }
 
 export async function setQuantity({
